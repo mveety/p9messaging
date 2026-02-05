@@ -5,7 +5,6 @@
 int
 main(int argc, char *argv[])
 {
-	char *argv1;
 	char *buffer;
 	int msgsize;
 	int nmsgs;

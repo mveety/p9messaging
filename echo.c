@@ -73,8 +73,8 @@ recvecho(void)
 void
 usage(void)
 {
-	fprint(2, "usage: send: %s -s pid\n");
-	fprint(2, "    receive: %s -r\n");
+	fprint(2, "usage: send: %s -s pid\n", argv0);
+	fprint(2, "    receive: %s -r\n", argv0);
 	exits("usage");
 }
 
@@ -82,8 +82,7 @@ int
 main(int argc, char *argv[])
 {
 	enum {Usage, Send, Recv} task = Usage;
-	int pid;
-	u32int ctl;
+	int pid = 0;
 
 	argv0 = strdup(argv[0]);
 	ARGBEGIN{
@@ -98,6 +97,9 @@ main(int argc, char *argv[])
 	default:
 		usage();
 	}ARGEND;
+
+	if(pid == 0)
+		usage();
 
 	if(sys_msgctl(Mctlwrite, MSGENABLE|MSGALLUSERS) != (MSGENABLE|MSGALLUSERS)){
 		fprint(2, "unable to set msgctl: %r\n");

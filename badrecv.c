@@ -8,6 +8,9 @@ main(int argc, char *argv[])
 	uvlong msgsz;
 	void *msgbuf;
 
+	USED(argc);
+	USED(argv);
+
 	fprint(2, "pid %d: waiting for message\n", getpid());
 
 	msgenable();

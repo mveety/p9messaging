@@ -8,6 +8,9 @@ main(int argc, char *argv[])
 	Mailbox *mbox;
 	Message *m;
 
+	USED(argc);
+	USED(argv);
+
 	fprint(2, "pid %d: waiting 10 for messages\n", getpid());
 	
 	msgenable();

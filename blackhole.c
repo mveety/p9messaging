@@ -9,6 +9,9 @@ main(int argc, char *argv[])
 	uintptr msgsz;
 	int failures = 0;
 
+	USED(argc);
+	USED(argv);
+
 	msgenable();
 	fprint(2, "pid %d: waiting for messages\n", getpid());
 
@@ -28,7 +31,7 @@ main(int argc, char *argv[])
 			fprint(2, "message too big (msgsz > %d)\n", sizeof(buffer));
 			exits("buffer too small");
 		}
-		if(sys_msgrecv(&buffer, msgsz) < 0) {
+		if((vlong)sys_msgrecv(&buffer[0], msgsz) < 0) {
 			failures++;
 			fprint(2, "msgrecv failure: %r\n");
 			continue;

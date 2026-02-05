@@ -1,0 +1,12 @@
+#!/bin/rc
+
+dtracy '
+sys:msgsend:entry { print probe, machno, pid, arg0, arg1, arg2}
+sys:msgsend:return { print probe, machno, pid, arg9 }
+sys:msgwait:entry { print probe, machno, pid}
+sys:msgwait:return { print probe, machno, pid, arg9 }
+sys:msgrecv:entry { print probe, machno, pid, arg0, arg1}
+sys:msgrecv:return { print probe, machno, pid, arg9 }
+sys:msgctl:entry { print probe, machno, pid, arg0, arg1 }
+sys:msgctl:return { print probe, machno, pid, arg9 }
+'

@@ -12,7 +12,7 @@ cd /
 	echo '[remote "mveety]'
 	echo '    url=https://github.com/mveety/9front-messaging.git'
 	echo ''
-} >> /.git
+} >> /.git/config
 git/pull -f -u mveety
 git/branch -b remotes/mveety/msgpassing -n msgpassing
 ```

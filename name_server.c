@@ -298,8 +298,33 @@ char *argv0;
 void
 usage(void)
 {
-	fprint(2, "usage %s [-s]\n", argv0);
+	fprint(2, "usage %s [-s] [-S srvname]\n", argv0);
 	exits("usage");
+}
+
+void
+srvproc(int srvfd, int pid)
+{
+	char buffer[32];
+	vlong sz;
+
+	for(;;) {
+		memset(&buffer[0], 0, sizeof(buffer));
+		sz = read(srvfd, &buffer[0], sizeof(buffer)-1);
+		if(sz < 0){
+			fprint(2, "error: srv: %r\n");
+			exits("read");
+		}
+		if(strcmp(buffer, "pid") == 0){
+			if(fprint(srvfd, "%10 d", pid) < 0){
+				fprint(2, "error: srv: %r\n");
+				exits("write");
+			}
+		} else {
+			fprint(srvfd, "invalid");
+			fprint(2, "srv: got invalid message: \"%s\"\n", buffer);
+		}
+	}
 }
 
 int
@@ -308,16 +333,51 @@ main(int argc, char *argv[])
 	enum { User, System } scope = User;
 	SystemMessage *startmsg;
 	char name[] = "name_server";
+	char *srvname = nil;
+	char *srv;
+	int srvfd, srvpipe[2];
+	int parentpid;
 
 	argv0 = argv[0];
 	ARGBEGIN{
 	case 's':
 		scope = System;
 		break;
+	case 'S':
+		srvname = strdup(EARGF(usage()));
+		break;
 	default:
 		usage();
 		break;
 	}ARGEND;
+
+	if(srvname == nil)
+		srvname = "name_server";
+
+	srv = smprint("/srv/%s", srvname);
+	pipe(srvpipe);
+	srvfd = create(srv, OWRITE, scope == System ? 0666 : 0600);
+	if(srvfd < 0){
+		fprint(2, "error unable to create %s: %r\n", srv);
+		exits("create");
+	}
+	fprint(srvfd, "%d", srvpipe[0]);
+	close(srvfd);
+	close(srvpipe[0]);
+	parentpid = getpid();
+
+	switch(rfork(RFPROC|RFMEM|RFNOWAIT)){
+	case 0:
+		srvproc(srvpipe[1], parentpid);
+		exits(nil);
+		break;
+	case -1:
+		fprint(2, "error: unable to rfork: %r\n");
+		exits("rfork");
+		break;
+	default:
+		break;
+	}
 
 	switch(scope){
 	case User:

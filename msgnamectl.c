@@ -9,7 +9,7 @@ char *argv0;
 void
 usage(void)
 {
-	fprint(2, "usage: %s [-r|-q] [-n nspid] [-p pid] name\n", argv0);
+	fprint(2, "usage: %s [-r|-q] [-n nspid] [-S srvfile] [-p pid] name\n", argv0);
 	exits("usage");
 }
 
@@ -20,6 +20,7 @@ main(int argc, char *argv[])
 	int nspid = 0;
 	char *name;
 	int retval;
+	char *srvname = nil;
 
 	argv0 = argv[0];
 
@@ -33,15 +34,26 @@ main(int argc, char *argv[])
 	case 'n':
 		nspid = atoi(EARGF(usage()));
 		break;
+	case 'S':
+		srvname = strdup(EARGF(usage()));
+		break;
 	default:
 		usage();
 		break;
 	}ARGEND;
 
-	if(mode == Usage || nspid == 0)
+	if(mode == Usage)
 		usage();
 	if(argc != 1)
 		usage();
+
+	if(nspid == 0){
+		nspid = name_server(srvname);
+		if(nspid < 1){
+			fprint(2, "error: unable to get name_server pid: %r");
+			exits("no name_server");
+		}
+	}
 
 	name = strdup(argv[0]);
 	sys_msgctl(Mctlwrite, MSGENABLE|MSGALLUSERS);

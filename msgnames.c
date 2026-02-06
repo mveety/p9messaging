@@ -97,3 +97,35 @@ retry:
 	free_systemmessage(resp);
 	return retval;
 }
+
+int
+name_server(char *srvname)
+{
+	int srvfd;
+	char buffer[32];
+	int nspid;
+
+	if(srvname == nil)
+		srvname = "/srv/name_server";
+
+	srvfd = open(srvname, ORDWR);
+	if(srvfd < 0){
+		fprint(2, "error: unable to open %s: %r\n", srvname);
+		return -1;
+	}
+	memset(&buffer[0], 0, sizeof(buffer));
+	fprint(srvfd, "pid");
+	if(read(srvfd, buffer, sizeof(buffer)) < 10){
+		close(srvfd);
+		fprint(2, "error: invalid srv message: %r\n");
+		return -1;
+	}
+	close(srvfd);
+	nspid = atoi(buffer);
+	if(nspid == 0){
+		fprint(2, "error: unable to get name_server pid\n");
+		return -1;
+	}
+
+	return nspid;
+}

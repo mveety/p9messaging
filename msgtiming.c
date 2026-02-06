@@ -1,34 +1,70 @@
 #include <u.h>
 #include <libc.h>
 #include <msg.h>
+#include "tags.h"
+#include "msgnames.h"
+
+char *argv0;
+
+void
+usage(void)
+{
+	fprint(2, "usage: %s [-S name_server] [-n nmsgs] [-s msgsize]\n", argv0);
+	exits("usage");
+}
 
 int
 main(int argc, char *argv[])
 {
 	char *buffer;
-	int msgsize;
-	int nmsgs;
+	int msgsize = 24;
+	int nmsgs = 100000;
 	int target;
 	int randfd;
+	int namepid;
+	char *namesrv = nil;
+
 	vlong start_time;
 	vlong end_time;
 	vlong total_time;
 	vlong seconds;
 	vlong milliseconds;
 
-	if(argc != 4) {
-		fprint(2, "usage: %s target nmsgs msgsize\n", argv[0]);
-		exits("usage");
+	argv0 = argv[0];
+
+	sys_msgctl(Mctlwrite, MSGENABLE|MSGALLUSERS);
+
+	ARGBEGIN{
+	case 'S':
+		namesrv = strdup(EARGF(usage()));
+		break;
+	case 'n':
+		nmsgs = atoi(EARGF(usage()));
+		break;
+	case 's':
+		msgsize = atoi(EARGF(usage()));
+		break;
+	default:
+		usage();
+		break;
+	}ARGEND;
+
+	namepid = name_server(namesrv);
+	if(namepid < 1){
+		fprint(2, "error: unable to get name_server: %r\n");
+		exits("name_server");
+	}
+
+	target = query_name(namepid, "msgtest_target");
+	if(target < 0){
+		fprint(2, "error: unable to find msgtest_target: %r\n");
+		exits("no_target");
 	}
 
 	if((randfd = open("/dev/random", OREAD)) < 0 ){
 		fprint(2, "unable to open /dev/random: %r\n");
 		exits("open");
 	}
-
-	target = atoi(argv[1]);
-	nmsgs = atoi(argv[2]);
-	msgsize = atoi(argv[3]);
 
 	if(target <= 0 || nmsgs <= 0 || msgsize <= 0){
 		fprint(2, "invalid arguments\n");

@@ -16,6 +16,10 @@ $O.name_server: name_server.$O tags.$O
 
 $O.msgnamectl: msgnamectl.$O tags.$O msgnames.$O
 
+$O.msgtiming: msgtiming.$O tags.$O msgnames.$O
+
+$O.msgtest_target: msgtest_target.$O tags.$O msgnames.$O
+
 badrecv:V: $O.badrecv
 
 blackhole:V: $O.blackhole
@@ -32,4 +36,6 @@ name_server:V: $O.name_server
 
 msgnamectl:V: $O.msgnamectl
 
-all: badrecv blackhole echo kmbox_test mbox_test msgtiming name_server
+msgtest_target:V: $O.msgtest_target
+
+all: badrecv blackhole echo kmbox_test mbox_test msgtiming name_server msgtest_target msgnamectl

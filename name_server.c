@@ -234,18 +234,17 @@ name_server(void)
 				continue;
 			}
 			lookup = find_by_name(smsg->registername.name);
-			if(!lookup){
-				/*if(monitor(MT_Process|ME_Death, *smsg->pid) < 0){
-					fprint(2, "warning: unable to monitor process %d: %r\n", *smsg->pid);
-					resp = new_namestatus(TagRegisterName, 0);
-				} else {*/
-					namebuf = strdup(smsg->registername.name);
-					add_name(namebuf, *smsg->pid);
-					fprint(2, "note: registered %d as \"%s\"\n", *smsg->pid, namebuf);
-					resp = new_namestatus(TagRegisterName, 0);
-				//}
-			} else
-				resp = new_namestatus(TagRegisterName, -1);
+			if(lookup)
+				remove_name_by_pid(lookup->pid);
+			/*if(monitor(MT_Process|ME_Death, *smsg->pid) < 0){
+				fprint(2, "warning: unable to monitor process %d: %r\n", *smsg->pid);
+				resp = new_namestatus(TagRegisterName, 0);
+			} else {*/
+				namebuf = strdup(smsg->registername.name);
+				add_name(namebuf, *smsg->pid);
+				fprint(2, "note: registered %d as \"%s\"\n", *smsg->pid, namebuf);
+				resp = new_namestatus(TagRegisterName, 0);
+			//}
 			break;
 		case TagNameStatus:
 			if(*smsg->pid == getpid() && *smsg->namestatus.request_tag == TagRegisterName){

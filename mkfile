@@ -20,6 +20,8 @@ $O.msgtiming: msgtiming.$O tags.$O msgnames.$O
 
 $O.msgtest_target: msgtest_target.$O tags.$O msgnames.$O
 
+$O.msgwait_target: msgwait_target.$O tags.$O msgnames.$O
+
 badrecv:V: $O.badrecv
 
 blackhole:V: $O.blackhole
@@ -38,4 +40,6 @@ msgnamectl:V: $O.msgnamectl
 
 msgtest_target:V: $O.msgtest_target
 
-all: badrecv blackhole echo kmbox_test mbox_test msgtiming name_server msgtest_target msgnamectl
+msgwait_target:V: $O.msgwait_target
+
+all: badrecv blackhole echo kmbox_test mbox_test msgtiming name_server msgtest_target msgnamectl msgwait_target

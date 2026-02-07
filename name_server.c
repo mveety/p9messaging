@@ -183,8 +183,8 @@ send_response(SystemMessage *smsg, SystemMessage *resp)
 {
 	if(!resp)
 		response_allocate_error();
-	if(msgsend(*smsg->pid, resp->carrier) < 0)
-		fprint(2, "warning: unable to send response to %d: %r\n", *smsg->pid);
+	if(msgsend(smsg->msg->pid, resp->msg) < 0)
+		fprint(2, "warning: unable to send response to %d: %r\n", smsg->msg->pid);
 }
 
 void
@@ -210,82 +210,81 @@ name_server(void)
 			continue;
 		}
 
-		switch(*smsg->tag){
+		switch(smsg->tag){
 		case TagExit:
-			if(*smsg->pid == srvpid){
-				fprint(2, "note: got exit message from %d. quitting...\n", *smsg->pid);
+			if(smsg->msg->pid == srvpid){
+				fprint(2, "note: got exit message from %d. quitting...\n", smsg->msg->pid);
 				exits(nil);
 			}
 			free_systemmessage(smsg);
 			continue;
 			break;
 		case TagRequestName:
-			if(*smsg->namerequest.namelen <= strlen(smsg->namerequest.name)){
-				fprint(2, "warning: got invalid message from %d\n", *smsg->pid);
+			if(smsg->namerequest->namelen <= strlen(smsg->namerequest->name)){
+				fprint(2, "warning: got invalid message from %d\n", smsg->msg->pid);
 				free_systemmessage(smsg);
 				continue;
 			}
-			lookup = find_by_name(smsg->namerequest.name);
+			lookup = find_by_name(smsg->namerequest->name);
 			if(!lookup)
 				resp = new_namestatus(TagRequestName, -1);
 			else
 				resp = new_resolvedname(lookup->pid, lookup->name, strlen(lookup->name)+1);
-
 			break;
 		case TagRegisterName:
-			if(*smsg->registername.namelen <= strlen(smsg->registername.name)){
-				fprint(2, "warning: got invalid message from %d\n", *smsg->pid);
+			if(smsg->registername->namelen <= strlen(smsg->registername->name)){
+				fprint(2, "warning: got invalid message from %d\n", smsg->msg->pid);
 				free_systemmessage(smsg);
 				continue;
 			}
-			lookup = find_by_name(smsg->registername.name);
+			lookup = find_by_name(smsg->registername->name);
 			if(lookup)
 				remove_name_by_pid(lookup->pid);
 			/*if(monitor(MT_Process|ME_Death, *smsg->pid) < 0){
-				fprint(2, "warning: unable to monitor process %d: %r\n", *smsg->pid);
+				fprint(2, "warning: unable to monitor process %d: %r\n", smsg->msg->pid);
 				resp = new_namestatus(TagRegisterName, 0);
 			} else {*/
-				namebuf = strdup(smsg->registername.name);
-				add_name(namebuf, *smsg->pid);
-				fprint(2, "note: registered %d as \"%s\"\n", *smsg->pid, namebuf);
+				namebuf = strdup(smsg->registername->name);
+				add_name(namebuf, smsg->msg->pid);
+				fprint(2, "note: registered %d as \"%s\"\n", smsg->msg->pid, namebuf);
 				resp = new_namestatus(TagRegisterName, 0);
 			//}
 			break;
 		case TagNameStatus:
-			if(*smsg->pid == getpid() && *smsg->namestatus.request_tag == TagRegisterName){
-				if(*smsg->namestatus.request_status != 0) {
+			if(smsg->msg->pid == getpid() && smsg->namestatus->request_tag == TagRegisterName){
+				if(smsg->namestatus->request_status != 0) {
 					fprint(2, "error: unable to register self! (request_status = %d)\n",
-						*smsg->namestatus.request_status);
+						smsg->namestatus->request_status);
 					abort();
 				}
 				fprint(2, "note: registered self as \"name_server\"\n");
 				free_systemmessage(smsg);
 				continue;
 			}
-			if(*smsg->namestatus.request_tag == TagAlive)
+			if(smsg->namestatus->request_tag == TagAlive)
 				resp = new_namestatus(TagAlive, 0);
 			else
 				resp = new_namestatus(TagUnknown, 0);
 			break;
 /*		case TagMonitor:
 			namebuf = nil;
-			if(!(*smsg->monitor.event & (MT_Process|ME_Death)){
+			if(!(smsg->monitor->event & (MT_Process|ME_Death)){
 				fprint(2, "warning: got spurious monitor message\n");
 				free_systemmessage(smsg);
 				continue;
 			}
-			lookup = find_by_pid(*smsg->monitor.oid);
+			lookup = find_by_pid(smsg->monitor->oid);
 			if(lookup)
 				namebuf = strdup(lookup->name);
-			if(remove_name_by_pid(*smsg->monitor.oid) < 0) {
-				fprint(2, "warning: got spurious pid death for %d\n", *smsg->monitor.oid);
+			if(remove_name_by_pid(smsg->monitor->oid) < 0) {
+				fprint(2, "warning: got spurious pid death for %d\n", smsg->monitor->oid);
 				free_systemmessage(smsg);
 				if(namebuf)
 					free(namebuf)
 				continue;
 			}
-			unmonitor(*smsg->monitor.id);
-			fprint(2, "removed \"%s\" (pid %d) from names\n", namebuf, *smsg->monitor.pid);
+			unmonitor(smsg->monitor->id);
+			fprint(2, "removed \"%s\" (pid %d) from names\n", namebuf, smsg->monitor->pid);
 			free_systemmessage(smsg);
 			free(namebuf);
 			continue; */
@@ -311,8 +310,7 @@ srvproc(char *srvfile, int srvfd, int pid)
 {
 	char buffer[32];
 	vlong sz;
-	Message *msg;
-	char goodbye[] = "goodbye";
+	SystemMessage *exitmsg;
 
 	for(;;) {
 		memset(&buffer[0], 0, sizeof(buffer));
@@ -328,11 +326,11 @@ srvproc(char *srvfile, int srvfd, int pid)
 			}
 		} else if(strcmp(buffer, "exit") == 0){
 			fprint(srvfd, "ok");
-			msg = message(TagExit, &goodbye[0], sizeof(goodbye));
+			exitmsg = new_exitmessage(0);
 			close(srvfd);
 			if(remove(srvfile) < 0)
 				fprint(2, "error: unable to remove %s: %r\n", srvfile);
-			msgsend(pid, msg);
+			msgsend(pid, exitmsg->msg);
 			exits(nil);
 		} else {
 			fprint(srvfd, "invalid");
@@ -411,7 +409,7 @@ main(int argc, char *argv[])
 	}
 
 	startmsg = new_registername(name, sizeof(name));
-	if(msgsend(getpid(), startmsg->carrier) < 0) {
+	if(msgsend(getpid(), startmsg->msg) < 0) {
 		fprint(2, "error: unable to register self: %r\n");
 		abort();
 	}

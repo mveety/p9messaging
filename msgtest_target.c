@@ -3,6 +3,7 @@
 #include <msg.h>
 #include "tags.h"
 #include "msgnames.h"
+#include "testing.h"
 
 char *argv0;
 
@@ -67,6 +68,7 @@ main(int argc, char *argv[])
 			fprint(2, "msgrecv failure: %r\n");
 			continue;
 		}
+		tryexitmessage(&buffer[0], msgsz);
 	}
 	fprint(2, "too many failures\n");
 	exits("too many failures");

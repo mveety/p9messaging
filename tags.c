@@ -6,18 +6,10 @@
 #include <msg.h>
 #include "tags.h"
 
-enum {
-	ExitMessageSz = sizeof(s32int),
-	NameStatusSz = 2*sizeof(s32int),
-	ResolvedNameSz = 2*sizeof(s32int)+1,
-	RegisterNameSz = sizeof(u32int)+1,
-	NameRequestSz = sizeof(u32int)+1,
-};
-
 void
 free_systemmessage(SystemMessage *smsg)
 {
-	freemsg(smsg->carrier);
+	freemsg(smsg->msg);
 	free(smsg);
 }
 
@@ -29,9 +21,7 @@ alloc_systemmessage(Message *msg)
 	if(!(smsg = mallocz(sizeof(SystemMessage), 1)))
 		return nil;
 
-	smsg->carrier = msg;
-	smsg->tag = &msg->tag;
-	smsg->pid = &msg->pid;
+	smsg->msg = msg;
 
 	return smsg;
 }
@@ -39,83 +29,54 @@ alloc_systemmessage(Message *msg)
 static int
 parse_exitmessage(SystemMessage *smsg)
 {
-	Message *msg;
-
-	msg = smsg->carrier;
-
-	if(msg->len < ExitMessageSz)
+	if(smsg->msg->len < sizeof(ExitMessage))
 		return -1;
-	smsg->exitmsg.code = msg->data;
+	smsg->exitmsg = smsg->msg->data;
+	smsg->tag = smsg->msg->tag;
 	return 0;
 }
 
 static int
 parse_namestatus(SystemMessage *smsg)
 {
-	Message *msg;
-	char *msgdata;
-
-	msg = smsg->carrier;
-	msgdata = msg->data;
-
-	if(msg->len < NameStatusSz)
+	if(smsg->msg->len < sizeof(NameStatusMsg))
 		return -1;
 
-	smsg->namestatus.request_tag = (s32int*)msgdata;
-	smsg->namestatus.request_status = (s32int*)(msgdata+(1*sizeof(s32int)));
-
+	smsg->namestatus = smsg->msg->data;
+	smsg->tag = smsg->msg->tag;
 	return 0;
 }
 
 static int
 parse_resolvedname(SystemMessage *smsg)
 {
-	Message *msg;
-	char *msgdata;
-
-	msg = smsg->carrier;
-	msgdata = msg->data;
-
-	if(msg->len < ResolvedNameSz)
+	if(smsg->msg->len < sizeof(ResolvedNameMsg))
 		return -1;
 
-	smsg->resolvedname.pid = (s32int*)msgdata;
-	smsg->resolvedname.namelen = (u32int*)(msgdata+(1*sizeof(s32int)));
-	smsg->resolvedname.name = (msgdata+(2*sizeof(s32int)));
+	smsg->resolvedname = smsg->msg->data;
+	smsg->tag = smsg->msg->tag;
 	return 0;
 }
 
 static int
 parse_registername(SystemMessage *smsg)
 {
-	Message *msg;
-	char *msgdata;
-
-	msg = smsg->carrier;
-	msgdata = msg->data;
-
-	if(msg->len < RegisterNameSz)
+	if(smsg->msg->len < sizeof(RegisterNameMsg))
 		return -1;
 
-	smsg->registername.namelen = (u32int*)msgdata;
-	smsg->registername.name = (msgdata+sizeof(s32int));
+	smsg->registername = smsg->msg->data;
+	smsg->tag = smsg->msg->tag;
 	return 0;
 }
 
 static int
 parse_namerequest(SystemMessage *smsg)
 {
-	Message *msg;
-	char *msgdata;
-
-	msg = smsg->carrier;
-	msgdata = msg->data;
-
-	if(msg->len < NameRequestSz)
+	if(smsg->msg->len < sizeof(NameRequestMsg))
 		return -1;
 
-	smsg->namerequest.namelen = (u32int*)msgdata;
-	smsg->namerequest.name = (msgdata+sizeof(s32int));
+	smsg->namerequest = smsg->msg->data;
+	smsg->tag = smsg->msg->tag;
 	return 0;
 }
 
@@ -173,8 +134,10 @@ new_exitmessage(s32int code)
 {
 	Message *msg;
 	SystemMessage *smsg;
+	ExitMessage exitmsg;
 
-	if(!(msg = message(TagExit, &code, sizeof(u32int))))
+	exitmsg.code = code;
+	if(!(msg = message(TagExit, &exitmsg, sizeof(ExitMessage))))
 		return nil;
 
 	if(!(smsg = alloc_systemmessage(msg))){
@@ -193,14 +156,14 @@ new_exitmessage(s32int code)
 SystemMessage*
 new_namestatus(s32int request_tag, s32int request_status)
 {
-	char buffer[2*sizeof(s32int)];
 	Message *msg;
 	SystemMessage *smsg;
+	NameStatusMsg nsmsg;
 
-	memmove(&buffer[0], &request_tag, sizeof(s32int));
-	memmove(&buffer[4], &request_status, sizeof(s32int));
+	nsmsg.request_tag = request_tag;
+	nsmsg.request_status = request_status;
 
-	if(!(msg = message(TagNameStatus, &buffer[0], sizeof(buffer))))
+	if(!(msg = message(TagNameStatus, &nsmsg, sizeof(NameStatusMsg))))
 		return nil;
 
 	if(!(smsg = alloc_systemmessage(msg))){
@@ -219,24 +182,24 @@ new_namestatus(s32int request_tag, s32int request_status)
 SystemMessage*
 new_resolvedname(s32int pid, char *name, u32int namelen)
 {
-	char *buffer;
 	Message *msg;
 	SystemMessage *smsg;
+	ResolvedNameMsg *rnamemsg;
 
-	buffer = mallocz(sizeof(s32int)+sizeof(u32int)+namelen, 1);
-	if(!buffer)
+	rnamemsg = mallocz(sizeof(ResolvedNameMsg)+namelen, 1);
+	if(!rnamemsg)
 		return nil;
 
-	memmove(&buffer[0], &pid, sizeof(s32int));
-	memmove(&buffer[4], &namelen, sizeof(u32int));
-	memmove(&buffer[8], name, namelen);
+	rnamemsg->pid = pid;
+	rnamemsg->namelen = namelen;
+	memmove(&rnamemsg->name[0], name, namelen);
 
-	msg = message(TagResolvedName, buffer, sizeof(s32int)+sizeof(u32int)+namelen);
+	msg = message(TagResolvedName, rnamemsg, sizeof(ResolvedNameMsg)+namelen);
 	if(!msg){
-		free(buffer);
+		free(rnamemsg);
 		return nil;
 	}
-	free(buffer);
+	free(rnamemsg);
 
 	if(!(smsg = alloc_systemmessage(msg))){
 		freemsg(msg);
@@ -254,23 +217,23 @@ new_resolvedname(s32int pid, char *name, u32int namelen)
 SystemMessage*
 new_registername(char *name, u32int namelen)
 {
-	char *buffer;
 	Message *msg;
 	SystemMessage *smsg;
+	RegisterNameMsg *rnamemsg;
 
-	buffer = mallocz(sizeof(u32int)+namelen, 1);
-	if(!buffer)
+	rnamemsg = mallocz(sizeof(RegisterNameMsg)+namelen, 1);
+	if(!rnamemsg)
 		return nil;
 
-	memmove(&buffer[0], &namelen, sizeof(u32int));
-	memmove(&buffer[4], name, namelen);
+	rnamemsg->namelen = namelen;
+	memmove(&rnamemsg->name[0], name, namelen);
 
-	msg = message(TagRegisterName, buffer, sizeof(u32int)+namelen);
+	msg = message(TagRegisterName, rnamemsg, sizeof(RegisterNameMsg)+namelen);
 	if(!msg){
-		free(buffer);
+		free(rnamemsg);
 		return nil;
 	}
-	free(buffer);
+	free(rnamemsg);
 
 	if(!(smsg = alloc_systemmessage(msg))){
 		freemsg(msg);
@@ -288,23 +251,23 @@ new_registername(char *name, u32int namelen)
 SystemMessage*
 new_namerequest(char *name, u32int namelen)
 {
-	char *buffer;
 	Message *msg;
 	SystemMessage *smsg;
+	NameRequestMsg *nreqmsg;
 
-	buffer = mallocz(sizeof(u32int)+namelen, 1);
-	if(!buffer)
+	nreqmsg = mallocz(sizeof(NameRequestMsg)+namelen, 1);
+	if(!nreqmsg)
 		return nil;
 
-	memmove(&buffer[0], &namelen, sizeof(u32int));
-	memmove(&buffer[4], name, namelen);
+	nreqmsg->namelen = namelen;
+	memmove(&nreqmsg->name[0], name, namelen);
 
-	msg = message(TagRequestName, buffer, sizeof(u32int)+namelen);
+	msg = message(TagRequestName, nreqmsg, sizeof(NameRequestMsg)+namelen);
 	if(!msg){
-		free(buffer);
+		free(nreqmsg);
 		return nil;
 	}
-	free(buffer);
+	free(nreqmsg);
 
 	if(!(smsg = alloc_systemmessage(msg))){
 		freemsg(msg);

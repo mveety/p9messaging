@@ -29,41 +29,42 @@ typedef struct ResolvedNameMsg ResolvedNameMsg;
 typedef struct RegisterNameMsg RegisterNameMsg;
 typedef struct NameRequestMsg NameRequestMsg;
 
+#pragma pack on
 struct ExitMessage {
-	s32int *code;
+	s32int code;
 };
 
 struct NameStatusMsg {
-	s32int *request_tag;
-	s32int *request_status;
+	s32int request_tag;
+	s32int request_status;
 };
 
 struct ResolvedNameMsg {
-	s32int *pid;
-	u32int *namelen;
-	char *name;
+	s32int pid;
+	u32int namelen;
+	char name[1];
 };
 
 struct RegisterNameMsg {
-	u32int *namelen;
-	char *name;
+	u32int namelen;
+	char name[1];
 };
 
 struct NameRequestMsg {
-	u32int *namelen;
-	char *name;
+	u32int namelen;
+	char name[1];
 };
+#pragma pack off
 
 struct SystemMessage {
-	Message *carrier;
-	int *tag;
-	int *pid;
+	Message *msg;
+	int tag;
 	union {
-		ExitMessage exitmsg;
-		NameStatusMsg namestatus;
-		ResolvedNameMsg resolvedname;
-		RegisterNameMsg registername;
-		NameRequestMsg namerequest;
+		ExitMessage *exitmsg;
+		NameStatusMsg *namestatus;
+		ResolvedNameMsg *resolvedname;
+		RegisterNameMsg *registername;
+		NameRequestMsg *namerequest;
 	};
 };
 

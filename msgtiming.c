@@ -23,6 +23,7 @@ main(int argc, char *argv[])
 	int randfd;
 	int namepid;
 	char *namesrv = nil;
+	SystemMessage *exitmsg;
 
 	vlong start_time;
 	vlong end_time;
@@ -99,5 +100,9 @@ main(int argc, char *argv[])
 
 	fprint(2, "took %lld.%03lld seconds to send %d messages\n",
 		seconds, milliseconds, nmsgs);
+
+	exitmsg = new_exitmessage(0);
+	msgsend(target, exitmsg->msg);
+
 	exits(nil);
 }

@@ -13,7 +13,7 @@ register_name(int nspid, char *name)
 	int retval;
 
 	smsg = new_registername(name, strlen(name)+1);
-	if(msgsend(nspid, smsg->carrier) < 0){
+	if(msgsend(nspid, smsg->msg) < 0){
 		free_systemmessage(smsg);
 		return 1;
 	}
@@ -32,15 +32,15 @@ retry:
 
 	resp = parse_systemmsg(respmsg);
 
-	switch(*resp->tag){
+	switch(resp->tag){
 	case TagExit:
 		abort();
 	case TagNameStatus:
-		if(*resp->namestatus.request_tag != TagRegisterName){
+		if(resp->namestatus->request_tag != TagRegisterName){
 			free_systemmessage(resp);
 			return 3;
 		}
-		retval = *resp->namestatus.request_status;
+		retval = resp->namestatus->request_status;
 		free_systemmessage(resp);
 		return retval;
 	}
@@ -57,7 +57,7 @@ query_name(int nspid, char *name)
 	int retval = 0;
 
 	smsg = new_namerequest(name, strlen(name)+1);
-	if(msgsend(nspid, smsg->carrier) < 0){
+	if(msgsend(nspid, smsg->msg) < 0){
 		free_systemmessage(smsg);
 		return -128;
 	}
@@ -76,19 +76,19 @@ retry:
 
 	resp = parse_systemmsg(respmsg);
 
-	switch(*resp->tag){
+	switch(resp->tag){
 	case TagExit:
 		abort();
 	case TagNameStatus:
-		if(*resp->namestatus.request_tag != TagRequestName){
+		if(resp->namestatus->request_tag != TagRequestName){
 			free_systemmessage(resp);
 			return -130;
 		}
-		retval = *resp->namestatus.request_status;
+		retval = resp->namestatus->request_status;
 		break;
 	case TagResolvedName:
-		if(strcmp(resp->resolvedname.name, name) == 0)
-			retval = *resp->resolvedname.pid;
+		if(strcmp(resp->resolvedname->name, name) == 0)
+			retval = resp->resolvedname->pid;
 		else
 			retval = -1;
 		break;

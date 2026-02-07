@@ -26,6 +26,7 @@ struct Name {
 
 Name **names;
 uintptr namessz = 0;
+int srvpid;
 
 int
 grow_names(void)
@@ -211,8 +212,12 @@ name_server(void)
 
 		switch(*smsg->tag){
 		case TagExit:
-			fprint(2, "note: got exit message from %d. quitting...\n", *smsg->pid);
-			exits(nil);
+			if(*smsg->pid == srvpid){
+				fprint(2, "note: got exit message from %d. quitting...\n", *smsg->pid);
+				exits(nil);
+			}
+			free_systemmessage(smsg);
+			continue;
 			break;
 		case TagRequestName:
 			if(*smsg->namerequest.namelen <= strlen(smsg->namerequest.name)){
@@ -302,10 +307,12 @@ usage(void)
 }
 
 void
-srvproc(int srvfd, int pid)
+srvproc(char *srvfile, int srvfd, int pid)
 {
 	char buffer[32];
 	vlong sz;
+	Message *msg;
+	char goodbye[] = "goodbye";
 
 	for(;;) {
 		memset(&buffer[0], 0, sizeof(buffer));
@@ -319,6 +326,14 @@ srvproc(int srvfd, int pid)
 				fprint(2, "error: srv: %r\n");
 				exits("write");
 			}
+		} else if(strcmp(buffer, "exit") == 0){
+			fprint(srvfd, "ok");
+			msg = message(TagExit, &goodbye[0], sizeof(goodbye));
+			close(srvfd);
+			if(remove(srvfile) < 0)
+				fprint(2, "error: unable to remove %s: %r\n", srvfile);
+			msgsend(pid, msg);
+			exits(nil);
 		} else {
 			fprint(srvfd, "invalid");
 			fprint(2, "srv: got invalid message: \"%s\"\n", buffer);
@@ -365,9 +380,9 @@ main(int argc, char *argv[])
 	close(srvpipe[0]);
 	parentpid = getpid();
 
-	switch(rfork(RFPROC|RFMEM|RFNOWAIT)){
+	switch((srvpid = rfork(RFPROC|RFMEM|RFNOWAIT))){
 	case 0:
-		srvproc(srvpipe[1], parentpid);
+		srvproc(srv, srvpipe[1], parentpid);
 		exits(nil);
 		break;
 	case -1:

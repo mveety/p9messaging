@@ -393,14 +393,14 @@ main(int argc, char *argv[])
 
 	switch(scope){
 	case User:
-		if(sys_msgctl(Mctlwrite, MSGENABLE) != MSGENABLE){
+		if(sys_msgctl(Mctlwrite, MSGENABLE|MSGPROCS) != (MSGENABLE|MSGPROCS)){
 			fprint(2, "error: unable to msgctl: %r\n");
 			exits("msgctl");
 		}
 		fprint(2, "note: name server starting as pid %d\n", getpid());
 		break;
 	case System:
-		if(sys_msgctl(Mctlwrite, MSGENABLE|MSGALLUSERS) != (MSGENABLE|MSGALLUSERS)){
+		if(sys_msgctl(Mctlwrite, MSGENABLE|MSGALLUSERS|MSGPROCS) != (MSGENABLE|MSGALLUSERS|MSGPROCS)){
 			fprint(2, "error: unable to msgctl: %r\n");
 			exits("msgctl");
 		}

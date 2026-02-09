@@ -3,13 +3,14 @@
 #include <msg.h>
 #include "tags.h"
 #include "msgnames.h"
+#include "testing.h"
 
 char *argv0;
 
 void
 usage(void)
 {
-	fprint(2, "usage: %s [-S name_server] [-n nmsgs] [-s msgsize]\n", argv0);
+	fprint(2, "usage: %s [-S name_server] [-n nmsgs] [-s msgsize] [-w wired]\n", argv0);
 	exits("usage");
 }
 
@@ -24,6 +25,7 @@ main(int argc, char *argv[])
 	int namepid;
 	char *namesrv = nil;
 	SystemMessage *exitmsg;
+	int wiredcpu = -1;
 
 	vlong start_time;
 	vlong end_time;
@@ -32,6 +34,7 @@ main(int argc, char *argv[])
 	vlong milliseconds;
 
 	argv0 = argv[0];
+
 
 	sys_msgctl(Mctlwrite, MSGENABLE|MSGALLUSERS);
 
@@ -44,6 +47,9 @@ main(int argc, char *argv[])
 		break;
 	case 's':
 		msgsize = atoi(EARGF(usage()));
+		break;
+	case 'w':
+		wiredcpu = atoi(EARGF(usage()));
 		break;
 	default:
 		usage();
@@ -81,6 +87,8 @@ main(int argc, char *argv[])
 		fprint(2, "read error: %r\n");
 		exits("readn");
 	}
+
+	wirecpu(wiredcpu, getpid());
 
 	fprint(2, "test start: sending %d %d byte message to %d\n",
 			nmsgs, msgsize, target);

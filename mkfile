@@ -13,13 +13,16 @@ TARG = \
 	badrecv \
 	blackhole \
 	echo \
+	pipes_test \
 	kmbox_test \
 	mbox_test \
 	msgtiming \
 	name_server \
 	msgnamectl \
 	msgtest_target \
-	msgwait_target
+	msgwait_target \
+	msgyourself \
+	msgzero
 
 BIN=$home/bin/$objtype
 
@@ -66,7 +69,7 @@ $O.name_server: name_server.$O tags.$O
 
 $O.msgnamectl: msgnamectl.$O $NAMING
 
-$O.msgtiming: msgtiming.$O $NAMING
+$O.msgtiming: msgtiming.$O $NAMING $TESTING
 
 $O.msgtest_target: msgtest_target.$O $NAMING $TESTING
 

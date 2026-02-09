@@ -1,0 +1,35 @@
+#!/bin/rc
+
+rfork ne
+
+switch($cputype){
+case 'arm'
+	O = 5
+case 'amd64'
+	O = 6
+case 'arm64'
+	O = 7
+case '386'
+	O = 8
+}
+
+
+need_nameserver = yes
+
+if(test -e /srv/name_server) {
+	need_nameserver = no
+}
+
+if(~ $need_nameserver yes) {
+	$O.name_server &
+	sleep 1
+}
+
+$O.msgtest_target &
+sleep 1
+$O.msgtiming -n 1000000 -s 24
+
+if(~ $need_nameserver yes) {
+	echo -n 'exit' >> /srv/name_server
+}
+sleep 1

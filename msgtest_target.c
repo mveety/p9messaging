@@ -9,7 +9,7 @@ char *argv0;
 
 void
 usage(void){
-	fprint(2, "usage: %s [-S namesrv]\n", argv0);
+	fprint(2, "usage: %s [-S namesrv] [-w wired]\n", argv0);
 	exits("usage");
 }
 
@@ -21,6 +21,7 @@ main(int argc, char *argv[])
 	int failures = 0;
 	char *namesrv = nil;
 	int namepid;
+	int wiredcpu = -1;
 
 	msgenable();
 
@@ -28,6 +29,9 @@ main(int argc, char *argv[])
 	ARGBEGIN{
 	case 'S':
 		namesrv = strdup(EARGF(usage()));
+		break;
+	case 'w':
+		wiredcpu = atoi(EARGF(usage()));
 		break;
 	default:
 		usage();
@@ -44,6 +48,8 @@ main(int argc, char *argv[])
 		fprint(2, "error: unable to register name: %r\n");
 		exits("register_name");
 	}
+
+	wirecpu(wiredcpu, getpid());
 
 	fprint(2, "pid %d: waiting for messages\n", getpid());
 

@@ -16,3 +16,28 @@ tryexitmessage(void *msgdata, uintptr msgsz)
 		exits(nil);
 	}
 }
+
+int
+wirecpu(int cpu, int pid)
+{
+	char *procctl;
+	int procctlfd;
+
+	if(cpu < 0)
+		return -1;
+
+	procctl = smprint("/proc/%d/ctl", pid);
+	if(!procctl)
+		abort();
+
+	procctlfd = open(procctl, OWRITE);
+	if(procctlfd < 0)
+		return -1;
+
+	fprint(procctlfd, "wired %d\n", cpu);
+
+	close(procctlfd);
+	free(procctl);
+
+	return 0;
+}

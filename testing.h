@@ -13,3 +13,4 @@ typedef struct {
 #pragma pack off
 
 extern void tryexitmessage(void *, uintptr);
+extern int wirecpu(int, int);

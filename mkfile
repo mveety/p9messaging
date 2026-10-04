@@ -6,7 +6,8 @@ HFILES = \
 NAMING = names.$O
 
 TARG = \
-	name_server
+	name_server \
+	msgnamectl
 
 BIN=$home/bin/$objtype
 
@@ -51,4 +52,8 @@ clean:V:
 
 $O.name_server: name_server.$O $NAMING
 
+$O.msgnamectl: msgnamectl.$O $NAMING
+
 name_server:V: $O.name_server
+
+msgnamectl:V: $O.msgnamectl

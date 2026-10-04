@@ -1,28 +1,12 @@
 </$objtype/mkfile
 
 HFILES = \
-	tags.h \
-	msgnames.h \
-	testing.h \
+	names.h
 
-NAMING = tags.$O msgnames.$O
-
-TESTING = testing.$O
+NAMING = names.$O
 
 TARG = \
-	badrecv \
-	blackhole \
-	echo \
-	pipes_test \
-	kmbox_test \
-	mbox_test \
-	msgtiming \
-	name_server \
-	msgnamectl \
-	msgtest_target \
-	msgwait_target \
-	msgyourself \
-	msgzero
+	name_server
 
 BIN=$home/bin/$objtype
 
@@ -65,32 +49,6 @@ clean:V:
 %.acid: %.$O $HFILES
 	$CC $CFLAGS -a $stem.c >$target
 
-$O.name_server: name_server.$O tags.$O
-
-$O.msgnamectl: msgnamectl.$O $NAMING
-
-$O.msgtiming: msgtiming.$O $NAMING $TESTING
-
-$O.msgtest_target: msgtest_target.$O $NAMING $TESTING
-
-$O.msgwait_target: msgwait_target.$O $NAMING $TESTING
-
-badrecv:V: $O.badrecv
-
-blackhole:V: $O.blackhole
-
-echo:V: $O.echo
-
-kmbox_test:V: $O.kmbox_test
-
-mbox_test:V: $O.mbox_test
-
-msgtiming:V: $O.msgtiming
+$O.name_server: name_server.$O $NAMING
 
 name_server:V: $O.name_server
-
-msgnamectl:V: $O.msgnamectl
-
-msgtest_target:V: $O.msgtest_target
-
-msgwait_target:V: $O.msgwait_target

@@ -1,9 +1,11 @@
 #include <u.h>
 #include <libc.h>
+#include <avl.h>
 #include <msg.h>
 #include "names.h"
 
 typedef struct Name Name;
+typedef struct Pid Pid;
 typedef struct ExitMessage ExitMessage;
 
 enum {
@@ -11,8 +13,16 @@ enum {
 };
 
 struct Name {
+	Avl;
 	char *name;
 	int pid;
+	Pid *ppid;
+};
+
+struct Pid {
+	Avl;
+	int pid;
+	Name *name;
 };
 
 #pragma pack on
@@ -22,152 +32,120 @@ struct ExitMessage {
 };
 #pragma pack off
 
-Name **names;
-uintptr namessz = 0;
+Avltree *names;
+Avltree *pids;
 int srvpid;
 u64int cookie;
 
 int
-grow_names(void)
+namestrcmp(Avl *la, Avl *lb)
 {
-	Name **old_names;
-	uintptr old_namessz;
-	Name **new_names;
-	uintptr new_namessz;
+	Name *na = (Name*)la;
+	Name *nb = (Name*)lb;
 
-	if(names == nil){
-		names = mallocz(NamesStartSize*sizeof(Name*), 1);
-		if(!names){
-			fprint(2, "unable to alloc names: %r\n");
-			abort();
-		}
-		namessz = NamesStartSize;
+	return strcmp(na->name, nb->name);
+}
+
+int
+namepidcmp(Avl *la, Avl *lb)
+{
+	Pid *pa = (Pid*)la;
+	Pid *pb = (Pid*)lb;
+
+	if(pa->pid == pb->pid)
+		return 0;
+	if(pa->pid < pb->pid)
 		return -1;
-	}
-
-	old_names = names;
-	old_namessz = namessz;
-
-	new_namessz = 2*old_namessz;
-	new_names = mallocz(new_namessz*sizeof(Name*), 1);
-	if(!new_names){
-		fprint(2, "bad names resize: %r\n");
-		abort();
-	}
-	memmove(new_names, old_names, old_namessz*sizeof(Name*));
-	free(old_names);
-	names = new_names;
-	namessz = new_namessz;
-
-	return 0;
+	return 1;
 }
 
 int
 add_name(char *name, int pid)
 {
-	uintptr i;
 	Name *newname;
+	Pid *newpid;
 
-	for(i = 0; i < namessz; i++){
-		if(names[i] == nil){
-			newname = malloc(sizeof(Name));
-			if(!newname){
-				fprint(2, "unable to malloc new name: %r\n");
-				abort();
-			}
-			newname->name = name;
-			newname->pid = pid;
-			names[i] = newname;
-			return 0;
-		}
+	newname = mallocz(sizeof(Name), 1);
+	newpid = mallocz(sizeof(Pid), 1);
+	if(!newname || !newpid){
+		fprint(2, "error: bad malloc: %r\n");
+		abort();
 	}
-
-	grow_names();
-
-	for(i = 0; i < namessz; i++){
-		if(names[i] == nil){
-			newname = malloc(sizeof(Name));
-			if(!newname){
-				fprint(2, "unable to malloc new name: %r\n");
-				abort();
-			}
-			newname->name = name;
-			newname->pid = pid;
-			names[i] = newname;
-			return 0;
-		}
-	}
-
-	fprint(2, "unable to find an empty name!\n");
-	abort();
+	newname->name = name;
+	newname->pid = pid;
+	newname->ppid = newpid;
+	newpid->pid = pid;
+	newpid->name = newname;
+	avlinsert(names, newname);
+	avlinsert(pids, newpid);
+	return 0;
 }
 
 int
 remove_name_by_pid(int pid)
 {
-	uintptr i;
+	Pid *p;
+	Pid key;
+	Name *name;
 
-	for(i = 0; i < namessz; i++){
-		if(names[i] == nil)
-			continue;
-		if(names[i]->pid == pid){
-			free(names[i]->name);
-			free(names[i]);
-			names[i] = nil;
-			return 0;
-		}
-	}
+	key.pid = pid;
+	p = (Pid*)avllookup(pids, &key, 0);
+	if(!p)
+		return -1;
 
-	return -1;
+	name = p->name;
+	avldelete(names, p->name);
+	avldelete(pids, p);
+	free(name->name);
+	free(name);
+	free(p);
+	return 0;
 }
 
 int
-remove_name_by_name(char *name)
+remove_name_by_name(char *str)
 {
-	uintptr i;
+	Name *name;
+	Name namekey;
+	Pid *p;
 
-	for(i = 0; i < namessz; i++){
-		if(names[i] == nil)
-			continue;
-		if(strcmp(name, names[i]->name) == 0){
-			free(names[i]->name);
-			free(names[i]);
-			names[i] = nil;
-			return 0;
-		}
-	}
-
-	return -1;
+	namekey.name = str;
+	name = (Name*)avllookup(names, &namekey, 0);
+	if(!name)
+		return -1;
+	p = name->ppid;
+	avldelete(names, name);
+	avldelete(pids, p);
+	free(name->name);
+	free(name);
+	free(p);
+	return 0;
 }
 
 Name*
 find_by_pid(int pid)
 {
-	uintptr i;
+	Pid pidkey;
+	Pid *p;
 
-	for(i = 0; i < namessz; i++){
-		if(names[i] == nil)
-			continue;
-		if(names[i]->pid == pid)
-			return names[i];
-	}
-
-	return nil;
+	pidkey.pid = pid;
+	p = (Pid*)avllookup(pids, &pidkey, 0);
+	if(!p)
+		return nil;
+	return p->name;
 }
 
 Name*
-find_by_name(char *name)
+find_by_name(char *str)
 {
-	uintptr i;
+	Name *name;
+	Name namekey;
 
-	for(i = 0; i < namessz; i++){
-		if(names[i] == nil)
-			continue;
-		if(strcmp(name, names[i]->name) == 0)
-			return names[i];
-	}
-
-	return nil;
+	namekey.name = str;
+	name = (Name*)avllookup(names, &namekey, 0);
+	if(!name)
+		return nil;
+	return name;
 }
 
 _Noreturn void
@@ -354,6 +332,9 @@ main(int argc, char *argv[])
 		usage();
 		break;
 	}ARGEND;
+
+	names = avlcreate(namestrcmp);
+	pids = avlcreate(namepidcmp);
 
 	if(srvname == nil)
 		srvname = "name_server";
